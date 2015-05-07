@@ -29,16 +29,18 @@ var standardFlags = []cli.Flag{
 
 var commands = []cli.Command{
 	cli.Command{
-		Name:   "put",
-		Usage:  "Upload files to S3",
-		Flags:  standardFlags,
-		Action: newput().putCommand,
+		Name:        "put",
+		Usage:       "put [directory] [target s3 url]",
+		Description: "Upload files to S3",
+		Flags:       standardFlags,
+		Action:      newput().putCommand,
 	},
 	cli.Command{
-		Name:   "get",
-		Usage:  "Download files from S3",
-		Flags:  standardFlags,
-		Action: newget().getCommand,
+		Name:        "get",
+		Usage:       "get [s3 url] [target directory]",
+		Description: "Download files from S3",
+		Flags:       standardFlags,
+		Action:      newget().getCommand,
 	},
 }
 
