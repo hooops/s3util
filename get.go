@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/codegangsta/cli"
-	"github.com/erikh/s3utils"
+	"github.com/erikh/s3util/common"
 )
 
 type get struct {
@@ -30,7 +30,7 @@ func newget() *get {
 
 func (g *get) fetch(host, bucketName, localPath string) {
 	for {
-		gc := s3utils.GetConfig{
+		gc := common.GetConfig{
 			Client:     g.client,
 			Pathchan:   g.pathchan,
 			Donechan:   g.donechan,
@@ -57,16 +57,16 @@ func (g *get) getCommand(ctx *cli.Context) {
 	}
 
 	if len(ctx.Args()) != 2 {
-		s3utils.ErrExit("Incorrect arguments. Try `%s --help`.", os.Args[0])
+		common.ErrExit("Incorrect arguments. Try `%s --help`.", os.Args[0])
 	}
 
-	if s3utils.ACCESS_KEY == "" || s3utils.SECRET_KEY == "" {
+	if common.ACCESS_KEY == "" || common.SECRET_KEY == "" {
 		fmt.Println("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
 		cli.ShowAppHelp(ctx)
 		os.Exit(1)
 	}
 
-	s3url, err := s3utils.ParseS3URL(ctx.Args()[0])
+	s3url, err := common.ParseS3URL(ctx.Args()[0])
 	if err != nil {
 		fmt.Println(err)
 		cli.ShowAppHelp(ctx)
@@ -104,30 +104,30 @@ func (g *get) getCommand(ctx *cli.Context) {
 	}
 
 	for {
-		bucket := s3utils.Bucket{}
+		bucket := common.Bucket{}
 
 		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s?marker=%s&prefix=%s", bucketName, myhost, url.QueryEscape(marker), url.QueryEscape(bucketPath)), nil)
 		if err != nil {
-			s3utils.ErrExit("Could not complete request: %v", err)
+			common.ErrExit("Could not complete request: %v", err)
 		}
 
-		resp, err := s3utils.Request(g.client, req)
+		resp, err := common.Request(g.client, req)
 		if err != nil {
-			s3utils.ErrExit("Could not complete request: %v", err)
+			common.ErrExit("Could not complete request: %v", err)
 		}
 
 		if resp.StatusCode != 200 {
 			fmt.Println("Ensure your region settings are correct.")
-			s3utils.ErrExit("Could not read bucket: fatal error.")
+			common.ErrExit("Could not read bucket: fatal error.")
 		}
 
 		content, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			s3utils.ErrExit("Failure during download: %v", err)
+			common.ErrExit("Failure during download: %v", err)
 		}
 
 		if err := xml.Unmarshal(content, &bucket); err != nil {
-			s3utils.ErrExit("Failure during XML parse: %v", err)
+			common.ErrExit("Failure during XML parse: %v", err)
 		}
 
 		if len(bucket.Contents) == 0 {
