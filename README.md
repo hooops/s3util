@@ -4,6 +4,8 @@ s3util provides a friendly CLI to parallel transfers. Using a parallel
 implementation of S3 uploading or downloading is the best way to get exemplary
 throughput on small files.
 
+s3util accepts s3cmd-style `s3://` urls for it's bucket references.
+
 ## Installation
 
 ```
