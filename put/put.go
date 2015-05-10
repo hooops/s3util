@@ -110,7 +110,7 @@ func (p *Put) runPut() {
 			fmt.Fprintf(os.Stderr, "%s ~> %s\n", putfile.filename, putfile.url)
 		} else {
 			fmt.Fprintf(os.Stderr, "Error pushing %s: %s. retrying\n", putfile.filename, err)
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(common.BACKOFF)
 			p.requestChan <- putfile
 			// FIXME improve error
 			if resp != nil && resp.Body != nil {
@@ -128,7 +128,7 @@ func (p *Put) runPut() {
 		resp.Body.Close()
 		putfile.request.Body.Close()
 
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(common.BACKOFF)
 	}
 }
 

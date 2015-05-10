@@ -18,8 +18,6 @@ import (
 	"github.com/erikh/s3util/s3url"
 )
 
-const BACKOFF = 100 * time.Millisecond
-
 type Get struct {
 	bucketClient *bucket.BucketClient
 	pathchan     chan *string
@@ -103,7 +101,7 @@ func (g *Get) push(s *string) error {
 
 func (g *Get) pushBack(s *string) {
 	g.push(s)
-	time.Sleep(BACKOFF)
+	time.Sleep(common.BACKOFF)
 }
 
 func (g *Get) fetch() {

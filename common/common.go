@@ -3,7 +3,10 @@ package common
 import (
 	"fmt"
 	"os"
+	"time"
 )
+
+const BACKOFF = 100 * time.Millisecond
 
 func ErrExit(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
