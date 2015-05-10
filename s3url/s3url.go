@@ -27,6 +27,7 @@ func ParseS3URL(s3url string) (S3URL, error) {
 
 	if s3.Path != "" {
 		if s3.Path == "/" {
+			s3.Path = ""
 		} else {
 			s3.Path = s3.Path[1:]
 		}

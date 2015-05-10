@@ -32,14 +32,14 @@ type bucket struct {
 }
 
 type BucketClient struct {
-	s3url  s3url.S3URL
-	client request.Client
+	S3URL  s3url.S3URL
+	Client request.Client
 }
 
 func NewBucketClient(s3url s3url.S3URL, c request.Client) *BucketClient {
 	return &BucketClient{
-		client: c,
-		s3url:  s3url,
+		Client: c,
+		S3URL:  s3url,
 	}
 }
 
@@ -49,12 +49,12 @@ func (bc *BucketClient) Find(found func(*string) error) error {
 	for {
 		var bucket bucket
 
-		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s?marker=%s&prefix=%s", bc.s3url.Bucket, bc.client.Host, url.QueryEscape(marker), url.QueryEscape(bc.s3url.Path)), nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s?marker=%s&prefix=%s", bc.S3URL.Bucket, bc.Client.Host, url.QueryEscape(marker), url.QueryEscape(bc.S3URL.Path)), nil)
 		if err != nil {
 			common.ErrExit("Could not complete request: %v", err)
 		}
 
-		resp, err := bc.client.Do(req)
+		resp, err := bc.Client.Do(req)
 		if err != nil {
 			return fmt.Errorf("Could not complete request: %v", err)
 		}
