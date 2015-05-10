@@ -20,8 +20,17 @@ func ParseS3URL(s3url string) (S3URL, error) {
 		return S3URL{}, fmt.Errorf("Not a s3:// url")
 	}
 
-	return S3URL{
+	s3 := S3URL{
 		Bucket: u.Host,
 		Path:   u.Path,
-	}, nil
+	}
+
+	if s3.Path != "" {
+		if s3.Path == "/" {
+		} else {
+			s3.Path = s3.Path[1:]
+		}
+	}
+
+	return s3, nil
 }

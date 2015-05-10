@@ -1,11 +1,9 @@
 package get
 
 import (
-	"encoding/xml"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -68,64 +66,22 @@ func (g *Get) GetCommand(ctx *cli.Context) {
 		os.Exit(1)
 	}
 
-	bucketName := s3url.Bucket
-	bucketPath := s3url.Path[1:]
 	localPath := ctx.Args()[1]
 
-	if bucketName == "" || localPath == "" {
+	if localPath == "" {
 		fmt.Println("Some flags are empty")
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	if bucketPath == "/" || bucketPath == "." {
-		bucketPath = ""
-	}
-
 	concurrency := ctx.Int("concurrency")
 	for i := 0; i < concurrency; i++ {
-		go g.fetch(bucketName, localPath)
+		go g.fetch(s3url.Bucket, localPath)
 	}
 
-	marker := ""
-
-	for {
-		bucket := bucket.Bucket{}
-
-		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s?marker=%s&prefix=%s", bucketName, g.client.Host, url.QueryEscape(marker), url.QueryEscape(bucketPath)), nil)
-		if err != nil {
-			common.ErrExit("Could not complete request: %v", err)
-		}
-
-		resp, err := g.client.Do(req)
-		if err != nil {
-			common.ErrExit("Could not complete request: %v", err)
-		}
-
-		if resp.StatusCode != 200 {
-			fmt.Println("Ensure your region settings are correct.")
-			common.ErrExit("Could not read bucket: fatal error.")
-		}
-
-		content, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			common.ErrExit("Failure during download: %v", err)
-		}
-
-		if err := xml.Unmarshal(content, &bucket); err != nil {
-			common.ErrExit("Failure during XML parse: %v", err)
-		}
-
-		if len(bucket.Contents) == 0 {
-			break
-		}
-
-		for _, item := range bucket.Contents {
-			str := item.Key
-			g.pathchan <- &str
-		}
-
-		marker = bucket.Contents[len(bucket.Contents)-1].Key
+	bucketClient := bucket.NewBucketClient(s3url, g.client)
+	if err := bucketClient.Find(g.foundPath); err != nil {
+		common.ErrExit(err.Error())
 	}
 
 	for i := 0; i < concurrency; i++ {
@@ -135,6 +91,11 @@ func (g *Get) GetCommand(ctx *cli.Context) {
 	for i := 0; i < concurrency; i++ {
 		<-g.donechan
 	}
+}
+
+func (g *Get) foundPath(s *string) error {
+	g.pathchan <- s
+	return nil
 }
 
 func (gc *GetConfig) Get() (bool, bool) {
