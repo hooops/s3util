@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/codegangsta/cli"
-	"github.com/erikh/s3util/common"
 )
 
 type putFile struct {
@@ -41,7 +40,7 @@ func (p *put) putCommand(ctx *cli.Context) {
 	}
 
 	target := ctx.Args()[0]
-	s3url, err := common.ParseS3URL(ctx.Args()[1])
+	s3url, err := ParseS3URL(ctx.Args()[1])
 	if err != nil {
 		fmt.Println(err)
 		cli.ShowAppHelp(ctx)
@@ -54,7 +53,7 @@ func (p *put) putCommand(ctx *cli.Context) {
 		os.Exit(1)
 	}
 
-	if common.ACCESS_KEY == "" || common.SECRET_KEY == "" {
+	if ACCESS_KEY == "" || SECRET_KEY == "" {
 		fmt.Println("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
 		cli.ShowAppHelp(ctx)
 		os.Exit(1)
@@ -150,7 +149,7 @@ func (p *put) runPut() {
 			return
 		}
 
-		resp, err := common.Request(p.client, putfile.request)
+		resp, err := Request(p.client, putfile.request)
 		if err == nil {
 			fmt.Printf("%s ~> %s\n", putfile.filename, putfile.url)
 		} else {
