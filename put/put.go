@@ -105,6 +105,10 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 		if myhost == "" {
 			region := ctx.String("region")
 
+			if region == "" {
+				region = env.REGION
+			}
+
 			if region != "" {
 				myhost = fmt.Sprintf("s3-%s.amazonaws.com", region)
 			} else {

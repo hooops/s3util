@@ -44,27 +44,12 @@ func NewGet() *Get {
 	}
 }
 
-func (g *Get) fetch(host, bucketName, localPath string) {
-	for {
-		gc := GetConfig{
-			Client:     g.client,
-			Pathchan:   g.pathchan,
-			Donechan:   g.donechan,
-			BucketName: bucketName,
-			LocalPath:  localPath,
-			Host:       host,
-		}
-
-		if ok, doBreak := gc.Get(); !ok && doBreak {
-			break
-		}
-
-		time.Sleep(100 * time.Millisecond)
-	}
-}
-
 func (g *Get) GetCommand(ctx *cli.Context) {
 	host, region := ctx.String("host"), ctx.String("region")
+
+	if region == "" {
+		region = env.REGION
+	}
 
 	if host != "" && region != "" {
 		fmt.Println("You cannot set both host and region.")
@@ -233,4 +218,23 @@ func (gc *GetConfig) Get() (bool, bool) {
 	fmt.Println(*target, "->", fullPath)
 
 	return true, false
+}
+
+func (g *Get) fetch(host, bucketName, localPath string) {
+	for {
+		gc := GetConfig{
+			Client:     g.client,
+			Pathchan:   g.pathchan,
+			Donechan:   g.donechan,
+			BucketName: bucketName,
+			LocalPath:  localPath,
+			Host:       host,
+		}
+
+		if ok, doBreak := gc.Get(); !ok && doBreak {
+			break
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
 }
