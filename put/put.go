@@ -12,9 +12,9 @@ import (
 
 	"github.com/codegangsta/cli"
 
-	"github.com/erikh/s3util/common"
 	"github.com/erikh/s3util/env"
 	"github.com/erikh/s3util/request"
+	"github.com/erikh/s3util/s3url"
 )
 
 type putFile struct {
@@ -44,7 +44,7 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 	}
 
 	target := ctx.Args()[0]
-	s3url, err := common.ParseS3URL(ctx.Args()[1])
+	s3url, err := s3url.ParseS3URL(ctx.Args()[1])
 	if err != nil {
 		fmt.Println(err)
 		cli.ShowAppHelp(ctx)

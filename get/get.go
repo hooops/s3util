@@ -18,6 +18,7 @@ import (
 	"github.com/erikh/s3util/common"
 	"github.com/erikh/s3util/env"
 	"github.com/erikh/s3util/request"
+	"github.com/erikh/s3util/s3url"
 )
 
 type GetConfig struct {
@@ -81,7 +82,7 @@ func (g *Get) GetCommand(ctx *cli.Context) {
 		os.Exit(1)
 	}
 
-	s3url, err := common.ParseS3URL(ctx.Args()[0])
+	s3url, err := s3url.ParseS3URL(ctx.Args()[0])
 	if err != nil {
 		fmt.Println(err)
 		cli.ShowAppHelp(ctx)

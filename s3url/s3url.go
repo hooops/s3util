@@ -1,4 +1,4 @@
-package common
+package s3url
 
 import (
 	"fmt"
