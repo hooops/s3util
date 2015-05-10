@@ -4,6 +4,9 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
+
+	"github.com/erikh/s3util/get"
+	"github.com/erikh/s3util/put"
 )
 
 const VERSION = "0.0.1"
@@ -33,14 +36,14 @@ var commands = []cli.Command{
 		Usage:       "put [directory] [target s3 url]",
 		Description: "Upload files to S3",
 		Flags:       standardFlags,
-		Action:      newput().putCommand,
+		Action:      put.NewPut().PutCommand,
 	},
 	cli.Command{
 		Name:        "get",
 		Usage:       "get [s3 url] [target directory]",
 		Description: "Download files from S3",
 		Flags:       standardFlags,
-		Action:      newget().getCommand,
+		Action:      get.NewGet().GetCommand,
 	},
 }
 

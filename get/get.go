@@ -1,4 +1,4 @@
-package main
+package get
 
 import (
 	"encoding/xml"
@@ -15,11 +15,12 @@ import (
 
 	"github.com/codegangsta/cli"
 
+	"github.com/erikh/s3util/common"
 	"github.com/erikh/s3util/env"
 	"github.com/erikh/s3util/request"
 )
 
-type getConfig struct {
+type GetConfig struct {
 	Client     *http.Client
 	Pathchan   chan *string
 	Donechan   chan struct{}
@@ -28,23 +29,23 @@ type getConfig struct {
 	Host       string
 }
 
-type get struct {
+type Get struct {
 	client   *http.Client
 	pathchan chan *string
 	donechan chan struct{}
 }
 
-func newget() *get {
-	return &get{
+func NewGet() *Get {
+	return &Get{
 		client:   &http.Client{},
 		pathchan: make(chan *string),
 		donechan: make(chan struct{}),
 	}
 }
 
-func (g *get) fetch(host, bucketName, localPath string) {
+func (g *Get) fetch(host, bucketName, localPath string) {
 	for {
-		gc := getConfig{
+		gc := GetConfig{
 			Client:     g.client,
 			Pathchan:   g.pathchan,
 			Donechan:   g.donechan,
@@ -61,7 +62,7 @@ func (g *get) fetch(host, bucketName, localPath string) {
 	}
 }
 
-func (g *get) getCommand(ctx *cli.Context) {
+func (g *Get) GetCommand(ctx *cli.Context) {
 	host, region := ctx.String("host"), ctx.String("region")
 
 	if host != "" && region != "" {
@@ -71,7 +72,7 @@ func (g *get) getCommand(ctx *cli.Context) {
 	}
 
 	if len(ctx.Args()) != 2 {
-		ErrExit("Incorrect arguments. Try `%s --help`.", os.Args[0])
+		common.ErrExit("Incorrect arguments. Try `%s --help`.", os.Args[0])
 	}
 
 	if env.ACCESS_KEY == "" || env.SECRET_KEY == "" {
@@ -80,7 +81,7 @@ func (g *get) getCommand(ctx *cli.Context) {
 		os.Exit(1)
 	}
 
-	s3url, err := ParseS3URL(ctx.Args()[0])
+	s3url, err := common.ParseS3URL(ctx.Args()[0])
 	if err != nil {
 		fmt.Println(err)
 		cli.ShowAppHelp(ctx)
@@ -122,26 +123,26 @@ func (g *get) getCommand(ctx *cli.Context) {
 
 		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s?marker=%s&prefix=%s", bucketName, myhost, url.QueryEscape(marker), url.QueryEscape(bucketPath)), nil)
 		if err != nil {
-			ErrExit("Could not complete request: %v", err)
+			common.ErrExit("Could not complete request: %v", err)
 		}
 
 		resp, err := request.Request(g.client, req)
 		if err != nil {
-			ErrExit("Could not complete request: %v", err)
+			common.ErrExit("Could not complete request: %v", err)
 		}
 
 		if resp.StatusCode != 200 {
 			fmt.Println("Ensure your region settings are correct.")
-			ErrExit("Could not read bucket: fatal error.")
+			common.ErrExit("Could not read bucket: fatal error.")
 		}
 
 		content, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			ErrExit("Failure during download: %v", err)
+			common.ErrExit("Failure during download: %v", err)
 		}
 
 		if err := xml.Unmarshal(content, &bucket); err != nil {
-			ErrExit("Failure during XML parse: %v", err)
+			common.ErrExit("Failure during XML parse: %v", err)
 		}
 
 		if len(bucket.Contents) == 0 {
@@ -165,7 +166,7 @@ func (g *get) getCommand(ctx *cli.Context) {
 	}
 }
 
-func (gc *getConfig) Get() (bool, bool) {
+func (gc *GetConfig) Get() (bool, bool) {
 	target := <-gc.Pathchan
 	if target == nil {
 		gc.Donechan <- struct{}{}
@@ -214,12 +215,12 @@ func (gc *getConfig) Get() (bool, bool) {
 	}
 
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0700); err != nil {
-		ErrExit("Could not create directory for download path: %v", err)
+		common.ErrExit("Could not create directory for download path: %v", err)
 	}
 
 	f, err := os.Create(fullPath)
 	if err != nil {
-		ErrExit("Could not create file: %v", err)
+		common.ErrExit("Could not create file: %v", err)
 	}
 
 	if _, err := io.Copy(f, resp.Body); err != nil {

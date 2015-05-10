@@ -1,4 +1,4 @@
-package main
+package put
 
 import (
 	"crypto/md5"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/codegangsta/cli"
 
+	"github.com/erikh/s3util/common"
 	"github.com/erikh/s3util/env"
 	"github.com/erikh/s3util/request"
 )
@@ -22,28 +23,28 @@ type putFile struct {
 	url      string
 }
 
-type put struct {
+type Put struct {
 	client      *http.Client
 	requestChan chan *putFile
 	doneChan    chan struct{}
 }
 
-func newput() *put {
-	return &put{
+func NewPut() *Put {
+	return &Put{
 		client:      new(http.Client),
 		requestChan: make(chan *putFile),
 		doneChan:    make(chan struct{}),
 	}
 }
 
-func (p *put) putCommand(ctx *cli.Context) {
+func (p *Put) PutCommand(ctx *cli.Context) {
 	if len(ctx.Args()) != 2 {
 		cli.ShowAppHelp(ctx)
 		os.Exit(1)
 	}
 
 	target := ctx.Args()[0]
-	s3url, err := ParseS3URL(ctx.Args()[1])
+	s3url, err := common.ParseS3URL(ctx.Args()[1])
 	if err != nil {
 		fmt.Println(err)
 		cli.ShowAppHelp(ctx)
@@ -144,7 +145,7 @@ func (p *put) putCommand(ctx *cli.Context) {
 	}
 }
 
-func (p *put) runPut() {
+func (p *Put) runPut() {
 	for {
 		putfile := <-p.requestChan
 		if putfile == nil {
@@ -177,7 +178,7 @@ func (p *put) runPut() {
 	}
 }
 
-func (p *put) startPutters(concurrency int) {
+func (p *Put) startPutters(concurrency int) {
 	for i := 0; i < concurrency; i++ {
 		go p.runPut()
 	}
