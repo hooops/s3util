@@ -107,9 +107,9 @@ func (p *Put) runPut() {
 
 		resp, err := p.client.Do(putfile.request)
 		if err == nil {
-			fmt.Printf("%s ~> %s\n", putfile.filename, putfile.url)
+			fmt.Fprintf(os.Stderr, "%s ~> %s\n", putfile.filename, putfile.url)
 		} else {
-			fmt.Printf("Error pushing %s: %s. retrying\n", putfile.filename, err)
+			fmt.Fprintf(os.Stderr, "Error pushing %s: %s. retrying\n", putfile.filename, err)
 			time.Sleep(100 * time.Millisecond)
 			p.requestChan <- putfile
 			// FIXME improve error
@@ -120,7 +120,7 @@ func (p *Put) runPut() {
 		}
 
 		if resp.StatusCode != 200 {
-			fmt.Printf("Received non-200 status code: %d. Cannot continue.\n", resp.StatusCode)
+			fmt.Fprintf(os.Stderr, "Received non-200 status code: %d. Cannot continue.\n", resp.StatusCode)
 			fmt.Println("Ensure your region settings are correct.")
 			os.Exit(1)
 		}

@@ -149,7 +149,7 @@ func (g *Get) fetch() {
 			g.pushBack(target)
 			continue
 		} else if err != nil {
-			fmt.Printf("Error: %v - retrying\n", err)
+			fmt.Fprintf(os.Stderr, "Error: %v - retrying\n", err)
 			g.pushBack(target)
 			continue
 		}
