@@ -1,7 +1,6 @@
 package get
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,6 +24,8 @@ type Get struct {
 	bucketClient *bucket.BucketClient
 	pathchan     chan *string
 	donechan     chan struct{}
+	localPath    string
+	concurrency  int
 }
 
 func NewGet() *Get {
@@ -36,8 +37,31 @@ func NewGet() *Get {
 }
 
 func (g *Get) GetCommand(ctx *cli.Context) {
+	if err := g.handleArgs(ctx); err != nil {
+		cli.ShowAppHelp(ctx)
+		common.ErrExit(err.Error())
+	}
+
+	for i := 0; i < g.concurrency; i++ {
+		go g.fetch()
+	}
+
+	if err := g.bucketClient.Find(g.push); err != nil {
+		common.ErrExit(err.Error())
+	}
+
+	for i := 0; i < g.concurrency; i++ {
+		g.pathchan <- nil
+	}
+
+	for i := 0; i < g.concurrency; i++ {
+		<-g.donechan
+	}
+}
+
+func (g *Get) handleArgs(ctx *cli.Context) error {
 	if len(ctx.Args()) != 2 {
-		common.ErrExit("Incorrect arguments. Try `%s --help`.", os.Args[0])
+		return fmt.Errorf("Incorrect arguments. Try `%s --help`.", os.Args[0])
 	}
 
 	client := request.NewClient(
@@ -48,44 +72,27 @@ func (g *Get) GetCommand(ctx *cli.Context) {
 	)
 
 	if client.AWS.AccessKeyID == "" || client.AWS.SecretAccessKey == "" {
-		fmt.Println("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
+		return fmt.Errorf("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
 		cli.ShowAppHelp(ctx)
 		os.Exit(1)
 	}
 
 	s3url, err := s3url.ParseS3URL(ctx.Args()[0])
 	if err != nil {
-		fmt.Println(err)
-		cli.ShowAppHelp(ctx)
-		os.Exit(1)
+		return err
 	}
-
-	g.bucketClient = bucket.NewBucketClient(s3url, client)
 
 	localPath := ctx.Args()[1]
 
 	if localPath == "" {
-		fmt.Println("Some flags are empty")
-		flag.Usage()
-		os.Exit(1)
+		return fmt.Errorf("Local path is missing. Please supply all arguments.")
 	}
 
-	concurrency := ctx.Int("concurrency")
-	for i := 0; i < concurrency; i++ {
-		go g.fetch(localPath)
-	}
+	g.concurrency = ctx.Int("concurrency")
 
-	if err := g.bucketClient.Find(g.push); err != nil {
-		common.ErrExit(err.Error())
-	}
+	g.bucketClient = bucket.NewBucketClient(s3url, client)
 
-	for i := 0; i < concurrency; i++ {
-		g.pathchan <- nil
-	}
-
-	for i := 0; i < concurrency; i++ {
-		<-g.donechan
-	}
+	return nil
 }
 
 func (g *Get) push(s *string) error {
@@ -98,7 +105,7 @@ func (g *Get) pushBack(s *string) {
 	time.Sleep(BACKOFF)
 }
 
-func (g *Get) fetch(localPath string) {
+func (g *Get) fetch() {
 	for {
 		target := <-g.pathchan
 		if target == nil {
@@ -106,7 +113,7 @@ func (g *Get) fetch(localPath string) {
 			break
 		}
 
-		fullPath := filepath.Join(localPath, *target)
+		fullPath := filepath.Join(g.localPath, *target)
 
 		if strings.HasSuffix(*target, "/") {
 			os.MkdirAll(fullPath, 0755)
