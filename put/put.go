@@ -142,30 +142,14 @@ func (p *Put) handleFile(path string, fi os.FileInfo, err error) error {
 		return fmt.Errorf("Could not open %q for reading: %v", path, err)
 	}
 
-	sum := md5.New()
-
-	buflen := 0
-
-	for {
-		buf := make([]byte, 4096)
-		c, err := file.Read(buf)
-		if err != nil && err != io.EOF {
-			return err
-		}
-
-		sum.Write(buf[:c])
-		buflen += c
-
-		if err == io.EOF {
-			break
-		}
+	md5sum, buflen, err := p.sumFile(file)
+	if err != nil {
+		return err
 	}
 
 	remotePath := filepath.Clean(filepath.Join(p.s3url.Path, path))
 
 	file.Seek(0, 0)
-
-	md5sum := base64.StdEncoding.EncodeToString(sum.Sum(nil))
 
 	req, url, err := p.createPutURL(file, md5sum, buflen, remotePath)
 	if err != nil {
@@ -193,4 +177,29 @@ func (p *Put) createPutURL(file io.ReadCloser, md5sum string, md5len int, remote
 	req.Header.Add("Content-MD5", md5sum)
 
 	return req, url, nil
+}
+
+func (p *Put) sumFile(file io.ReadCloser) (string, int, error) {
+	sum := md5.New()
+
+	buflen := 0
+
+	for {
+		buf := make([]byte, 4096)
+		c, err := file.Read(buf)
+		if err != nil && err != io.EOF {
+			return "", 0, err
+		}
+
+		sum.Write(buf[:c])
+		buflen += c
+
+		if err == io.EOF {
+			break
+		}
+	}
+
+	md5sum := base64.StdEncoding.EncodeToString(sum.Sum(nil))
+
+	return md5sum, buflen, nil
 }
