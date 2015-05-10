@@ -28,6 +28,8 @@ type Put struct {
 	client      request.Client
 	requestChan chan *putFile
 	doneChan    chan struct{}
+	target      string
+	concurrency int
 }
 
 func NewPut() *Put {
@@ -38,9 +40,32 @@ func NewPut() *Put {
 }
 
 func (p *Put) PutCommand(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
+	if err := p.handleArgs(ctx); err != nil {
 		cli.ShowAppHelp(ctx)
+		common.ErrExit(err.Error())
+	}
+
+	for i := 0; i < p.concurrency; i++ {
+		go p.runPut()
+	}
+
+	if err := filepath.Walk(p.target, p.handleFile); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+
+	for i := 0; i < p.concurrency; i++ {
+		p.requestChan <- nil
+	}
+
+	for i := 0; i < p.concurrency; i++ {
+		<-p.doneChan
+	}
+}
+
+func (p *Put) handleArgs(ctx *cli.Context) error {
+	if len(ctx.Args()) != 2 {
+		return fmt.Errorf("Invalid number of arguments.")
 	}
 
 	p.client = request.NewClient(
@@ -50,43 +75,26 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 		ctx.String("region"),
 	)
 
-	target := ctx.Args()[0]
+	p.target = ctx.Args()[0]
+
 	s3url, err := s3url.ParseS3URL(ctx.Args()[1])
 	if err != nil {
-		fmt.Println(err)
-		cli.ShowAppHelp(ctx)
-		os.Exit(1)
+		return err
 	}
 
 	p.s3url = s3url
 
-	if target == "" {
-		fmt.Println("Invalid target or bucket")
-		cli.ShowAppHelp(ctx)
-		os.Exit(1)
+	if p.target == "" {
+		return fmt.Errorf("Invalid target or bucket")
 	}
 
 	if p.client.AWS.AccessKeyID == "" || p.client.AWS.SecretAccessKey == "" {
-		fmt.Println("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
-		cli.ShowAppHelp(ctx)
-		os.Exit(1)
+		return fmt.Errorf("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
 	}
 
-	concurrency := ctx.Int("concurrency")
-	p.startPutters(concurrency)
+	p.concurrency = ctx.Int("concurrency")
 
-	if err := filepath.Walk(target, p.handleFile); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	for i := 0; i < concurrency; i++ {
-		p.requestChan <- nil
-	}
-
-	for i := 0; i < concurrency; i++ {
-		<-p.doneChan
-	}
+	return nil
 }
 
 func (p *Put) runPut() {
@@ -101,7 +109,8 @@ func (p *Put) runPut() {
 		if err == nil {
 			fmt.Printf("%s ~> %s\n", putfile.filename, putfile.url)
 		} else {
-			fmt.Print("Error receiving %s: %s. retrying", putfile.filename, err)
+			fmt.Printf("Error pushing %s: %s. retrying\n", putfile.filename, err)
+			time.Sleep(100 * time.Millisecond)
 			p.requestChan <- putfile
 			// FIXME improve error
 			if resp != nil && resp.Body != nil {
@@ -120,12 +129,6 @@ func (p *Put) runPut() {
 		putfile.request.Body.Close()
 
 		time.Sleep(100 * time.Millisecond)
-	}
-}
-
-func (p *Put) startPutters(concurrency int) {
-	for i := 0; i < concurrency; i++ {
-		go p.runPut()
 	}
 }
 
