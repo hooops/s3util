@@ -165,15 +165,12 @@ func (p *Put) handleFile(path string, fi os.FileInfo, err error) error {
 
 	file.Seek(0, 0)
 
-	url := common.TemplateHost(p.s3url.Bucket, p.client.Host, remotePath)
-	req, err := http.NewRequest("PUT", url, file)
+	md5sum := base64.StdEncoding.EncodeToString(sum.Sum(nil))
+
+	req, url, err := p.createPutURL(file, md5sum, buflen, remotePath)
 	if err != nil {
 		return err
 	}
-
-	req.ContentLength = int64(buflen)
-	req.Header.Add("Content-Type", "binary/octet-stream")
-	req.Header.Add("Content-MD5", base64.StdEncoding.EncodeToString(sum.Sum(nil)))
 
 	p.requestChan <- &putFile{
 		request:  req,
@@ -182,4 +179,18 @@ func (p *Put) handleFile(path string, fi os.FileInfo, err error) error {
 	}
 
 	return nil
+}
+
+func (p *Put) createPutURL(file io.ReadCloser, md5sum string, md5len int, remotePath string) (*http.Request, string, error) {
+	url := common.TemplateHost(p.s3url.Bucket, p.client.Host, remotePath)
+	req, err := http.NewRequest("PUT", url, file)
+	if err != nil {
+		return nil, "", err
+	}
+
+	req.ContentLength = int64(md5len)
+	req.Header.Add("Content-Type", "binary/octet-stream")
+	req.Header.Add("Content-MD5", md5sum)
+
+	return req, url, nil
 }
