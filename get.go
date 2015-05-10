@@ -15,6 +15,7 @@ import (
 
 	"github.com/codegangsta/cli"
 
+	"github.com/erikh/s3util/env"
 	"github.com/erikh/s3util/request"
 )
 
@@ -73,7 +74,7 @@ func (g *get) getCommand(ctx *cli.Context) {
 		ErrExit("Incorrect arguments. Try `%s --help`.", os.Args[0])
 	}
 
-	if request.ACCESS_KEY == "" || request.SECRET_KEY == "" {
+	if env.ACCESS_KEY == "" || env.SECRET_KEY == "" {
 		fmt.Println("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
 		cli.ShowAppHelp(ctx)
 		os.Exit(1)

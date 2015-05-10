@@ -2,9 +2,10 @@ package request
 
 import (
 	"net/http"
-	"os"
 
 	"github.com/smartystreets/go-aws-auth"
+
+	"github.com/erikh/s3util/env"
 )
 
 type Bucket struct {
@@ -30,26 +31,12 @@ type BucketOwner struct {
 	DisplayName string
 }
 
-var ACCESS_KEY, SECRET_KEY string
-
-func init() {
-	ACCESS_KEY = os.Getenv("AWS_ACCESS_KEY_ID")
-	if ACCESS_KEY == "" {
-		ACCESS_KEY = os.Getenv("AWS_ACCESS_KEY")
-	}
-
-	SECRET_KEY := os.Getenv("AWS_SECRET_ACCESS_KEY")
-	if SECRET_KEY == "" {
-		SECRET_KEY = os.Getenv("AWS_SECRET_KEY")
-	}
-}
-
 func signRequest(req *http.Request) *http.Request {
 	return awsauth.Sign4(
 		req,
 		awsauth.Credentials{
-			AccessKeyID:     ACCESS_KEY,
-			SecretAccessKey: SECRET_KEY,
+			AccessKeyID:     env.ACCESS_KEY,
+			SecretAccessKey: env.SECRET_KEY,
 		},
 	)
 }
