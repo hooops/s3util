@@ -7,29 +7,6 @@ import (
 	"github.com/smartystreets/go-aws-auth"
 )
 
-type Bucket struct {
-	Name           string
-	MaxKeys        uint
-	Prefix         string
-	Marker         string
-	Contents       []BucketItem
-	CommonPrefixes string
-}
-
-type BucketItem struct {
-	Key          string
-	LastModified string
-	ETag         string
-	Size         string
-	Owner        BucketOwner
-	StorageClass string
-}
-
-type BucketOwner struct {
-	ID          string
-	DisplayName string
-}
-
 type Client struct {
 	HTTP *http.Client
 	AWS  awsauth.Credentials

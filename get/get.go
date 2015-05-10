@@ -15,6 +15,7 @@ import (
 
 	"github.com/codegangsta/cli"
 
+	"github.com/erikh/s3util/bucket"
 	"github.com/erikh/s3util/common"
 	"github.com/erikh/s3util/request"
 	"github.com/erikh/s3util/s3url"
@@ -89,7 +90,7 @@ func (g *Get) GetCommand(ctx *cli.Context) {
 	marker := ""
 
 	for {
-		bucket := request.Bucket{}
+		bucket := bucket.Bucket{}
 
 		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s?marker=%s&prefix=%s", bucketName, g.client.Host, url.QueryEscape(marker), url.QueryEscape(bucketPath)), nil)
 		if err != nil {
