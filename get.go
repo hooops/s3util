@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/codegangsta/cli"
+
+	"github.com/erikh/s3util/request"
 )
 
-type GetConfig struct {
+type getConfig struct {
 	Client     *http.Client
 	Pathchan   chan *string
 	Donechan   chan struct{}
@@ -41,7 +43,7 @@ func newget() *get {
 
 func (g *get) fetch(host, bucketName, localPath string) {
 	for {
-		gc := GetConfig{
+		gc := getConfig{
 			Client:     g.client,
 			Pathchan:   g.pathchan,
 			Donechan:   g.donechan,
@@ -71,7 +73,7 @@ func (g *get) getCommand(ctx *cli.Context) {
 		ErrExit("Incorrect arguments. Try `%s --help`.", os.Args[0])
 	}
 
-	if ACCESS_KEY == "" || SECRET_KEY == "" {
+	if request.ACCESS_KEY == "" || request.SECRET_KEY == "" {
 		fmt.Println("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
 		cli.ShowAppHelp(ctx)
 		os.Exit(1)
@@ -115,14 +117,14 @@ func (g *get) getCommand(ctx *cli.Context) {
 	}
 
 	for {
-		bucket := Bucket{}
+		bucket := request.Bucket{}
 
 		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s?marker=%s&prefix=%s", bucketName, myhost, url.QueryEscape(marker), url.QueryEscape(bucketPath)), nil)
 		if err != nil {
 			ErrExit("Could not complete request: %v", err)
 		}
 
-		resp, err := Request(g.client, req)
+		resp, err := request.Request(g.client, req)
 		if err != nil {
 			ErrExit("Could not complete request: %v", err)
 		}
@@ -162,7 +164,7 @@ func (g *get) getCommand(ctx *cli.Context) {
 	}
 }
 
-func (gc *GetConfig) Get() (bool, bool) {
+func (gc *getConfig) Get() (bool, bool) {
 	target := <-gc.Pathchan
 	if target == nil {
 		gc.Donechan <- struct{}{}
@@ -182,7 +184,7 @@ func (gc *GetConfig) Get() (bool, bool) {
 		return false, false
 	}
 
-	resp, err := Request(gc.Client, req)
+	resp, err := request.Request(gc.Client, req)
 	if err != nil {
 		gc.Pathchan <- target
 		return false, false
