@@ -134,8 +134,7 @@ func (g *Get) fetch() {
 		}
 
 		if resp.StatusCode != 200 {
-			fmt.Printf("Received status %d downloading; cannot continue.\n", resp.StatusCode)
-			os.Exit(1)
+			common.ErrExit("Received status %d downloading; cannot continue.\n", resp.StatusCode)
 		}
 
 		// if there's any error requesting the url, retry.  silently do so if we

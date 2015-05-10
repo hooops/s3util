@@ -24,6 +24,7 @@ type putFile struct {
 }
 
 type Put struct {
+	s3url       s3url.S3URL
 	client      request.Client
 	requestChan chan *putFile
 	doneChan    chan struct{}
@@ -31,7 +32,6 @@ type Put struct {
 
 func NewPut() *Put {
 	return &Put{
-		client:      request.Client{},
 		requestChan: make(chan *putFile),
 		doneChan:    make(chan struct{}),
 	}
@@ -58,6 +58,8 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 		os.Exit(1)
 	}
 
+	p.s3url = s3url
+
 	if target == "" {
 		fmt.Println("Invalid target or bucket")
 		cli.ShowAppHelp(ctx)
@@ -71,62 +73,9 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 	}
 
 	concurrency := ctx.Int("concurrency")
-
 	p.startPutters(concurrency)
 
-	err = filepath.Walk(target, func(path string, fi os.FileInfo, err error) error {
-		if fi != nil && fi.IsDir() {
-			return nil
-		}
-
-		file, err := os.Open(path)
-		if err != nil {
-			return fmt.Errorf("Could not open %q for reading: %v", path, err)
-		}
-
-		sum := md5.New()
-
-		buflen := 0
-
-		for {
-			buf := make([]byte, 4096)
-			c, err := file.Read(buf)
-			if err != nil && err != io.EOF {
-				return err
-			}
-
-			sum.Write(buf[:c])
-			buflen += c
-
-			if err == io.EOF {
-				break
-			}
-		}
-
-		remotePath := filepath.Clean(filepath.Join(s3url.Path, path))
-
-		file.Seek(0, 0)
-
-		url := common.TemplateHost(s3url.Bucket, p.client.Host, remotePath)
-		req, err := http.NewRequest("PUT", url, file)
-		if err != nil {
-			return err
-		}
-
-		req.ContentLength = int64(buflen)
-		req.Header.Add("Content-Type", "binary/octet-stream")
-		req.Header.Add("Content-MD5", base64.StdEncoding.EncodeToString(sum.Sum(nil)))
-
-		p.requestChan <- &putFile{
-			request:  req,
-			filename: path,
-			url:      url,
-		}
-
-		return nil
-	})
-
-	if err != nil {
+	if err := filepath.Walk(target, p.handleFile); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
@@ -158,6 +107,7 @@ func (p *Put) runPut() {
 			if resp != nil && resp.Body != nil {
 				io.Copy(os.Stdout, resp.Body)
 			}
+			continue
 		}
 
 		if resp.StatusCode != 200 {
@@ -177,4 +127,56 @@ func (p *Put) startPutters(concurrency int) {
 	for i := 0; i < concurrency; i++ {
 		go p.runPut()
 	}
+}
+
+func (p *Put) handleFile(path string, fi os.FileInfo, err error) error {
+	if fi != nil && fi.IsDir() {
+		return nil
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("Could not open %q for reading: %v", path, err)
+	}
+
+	sum := md5.New()
+
+	buflen := 0
+
+	for {
+		buf := make([]byte, 4096)
+		c, err := file.Read(buf)
+		if err != nil && err != io.EOF {
+			return err
+		}
+
+		sum.Write(buf[:c])
+		buflen += c
+
+		if err == io.EOF {
+			break
+		}
+	}
+
+	remotePath := filepath.Clean(filepath.Join(p.s3url.Path, path))
+
+	file.Seek(0, 0)
+
+	url := common.TemplateHost(p.s3url.Bucket, p.client.Host, remotePath)
+	req, err := http.NewRequest("PUT", url, file)
+	if err != nil {
+		return err
+	}
+
+	req.ContentLength = int64(buflen)
+	req.Header.Add("Content-Type", "binary/octet-stream")
+	req.Header.Add("Content-MD5", base64.StdEncoding.EncodeToString(sum.Sum(nil)))
+
+	p.requestChan <- &putFile{
+		request:  req,
+		filename: path,
+		url:      url,
+	}
+
+	return nil
 }
