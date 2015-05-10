@@ -57,6 +57,8 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 		os.Exit(1)
 	}
 
+	env.Init(ctx.String("access-key"), ctx.String("secret-key"))
+
 	if env.ACCESS_KEY == "" || env.SECRET_KEY == "" {
 		fmt.Println("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
 		cli.ShowAppHelp(ctx)
@@ -104,10 +106,6 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 
 		if myhost == "" {
 			region := ctx.String("region")
-
-			if region == "" {
-				region = env.REGION
-			}
 
 			if region != "" {
 				myhost = fmt.Sprintf("s3-%s.amazonaws.com", region)

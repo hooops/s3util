@@ -47,10 +47,6 @@ func NewGet() *Get {
 func (g *Get) GetCommand(ctx *cli.Context) {
 	host, region := ctx.String("host"), ctx.String("region")
 
-	if region == "" {
-		region = env.REGION
-	}
-
 	if host != "" && region != "" {
 		fmt.Println("You cannot set both host and region.")
 		cli.ShowAppHelp(ctx)
@@ -60,6 +56,8 @@ func (g *Get) GetCommand(ctx *cli.Context) {
 	if len(ctx.Args()) != 2 {
 		common.ErrExit("Incorrect arguments. Try `%s --help`.", os.Args[0])
 	}
+
+	env.Init(ctx.String("access-key"), ctx.String("secret-key"))
 
 	if env.ACCESS_KEY == "" || env.SECRET_KEY == "" {
 		fmt.Println("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
