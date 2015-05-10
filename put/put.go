@@ -12,6 +12,7 @@ import (
 
 	"github.com/codegangsta/cli"
 
+	"github.com/erikh/s3util/common"
 	"github.com/erikh/s3util/request"
 	"github.com/erikh/s3util/s3url"
 )
@@ -106,7 +107,7 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 
 		file.Seek(0, 0)
 
-		url := fmt.Sprintf("https://%s.%s%s", s3url.Bucket, p.client.Host, remotePath)
+		url := common.TemplateHost(s3url.Bucket, p.client.Host, remotePath)
 		req, err := http.NewRequest("PUT", url, file)
 		if err != nil {
 			return err

@@ -88,6 +88,7 @@ func (g *Get) handleArgs(ctx *cli.Context) error {
 		return fmt.Errorf("Local path is missing. Please supply all arguments.")
 	}
 
+	g.localPath = localPath
 	g.concurrency = ctx.Int("concurrency")
 
 	g.bucketClient = bucket.NewBucketClient(s3url, client)
@@ -120,7 +121,7 @@ func (g *Get) fetch() {
 			continue
 		}
 
-		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s/%s", g.bucketClient.S3URL.Bucket, g.bucketClient.Client.Host, *target), nil)
+		req, err := http.NewRequest("GET", common.TemplateHost(g.bucketClient.S3URL.Bucket, g.bucketClient.Client.Host, *target), nil)
 		if err != nil {
 			g.pushBack(target)
 			continue
