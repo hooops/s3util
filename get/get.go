@@ -16,50 +16,45 @@ import (
 	"github.com/codegangsta/cli"
 
 	"github.com/erikh/s3util/common"
-	"github.com/erikh/s3util/env"
 	"github.com/erikh/s3util/request"
 	"github.com/erikh/s3util/s3url"
 )
 
 type GetConfig struct {
-	Client     *http.Client
+	Client     request.Client
 	Pathchan   chan *string
 	Donechan   chan struct{}
 	BucketName string
 	LocalPath  string
-	Host       string
 }
 
 type Get struct {
-	client   *http.Client
+	client   request.Client
 	pathchan chan *string
 	donechan chan struct{}
 }
 
 func NewGet() *Get {
 	return &Get{
-		client:   &http.Client{},
+		client:   request.Client{},
 		pathchan: make(chan *string),
 		donechan: make(chan struct{}),
 	}
 }
 
 func (g *Get) GetCommand(ctx *cli.Context) {
-	host, region := ctx.String("host"), ctx.String("region")
-
-	if host != "" && region != "" {
-		fmt.Println("You cannot set both host and region.")
-		cli.ShowAppHelp(ctx)
-		os.Exit(1)
-	}
-
 	if len(ctx.Args()) != 2 {
 		common.ErrExit("Incorrect arguments. Try `%s --help`.", os.Args[0])
 	}
 
-	env.Init(ctx.String("access-key"), ctx.String("secret-key"))
+	g.client = request.NewClient(
+		ctx.String("access-key"),
+		ctx.String("secret-key"),
+		ctx.String("host"),
+		ctx.String("region"),
+	)
 
-	if env.ACCESS_KEY == "" || env.SECRET_KEY == "" {
+	if g.client.AWS.AccessKeyID == "" || g.client.AWS.SecretAccessKey == "" {
 		fmt.Println("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
 		cli.ShowAppHelp(ctx)
 		os.Exit(1)
@@ -86,31 +81,22 @@ func (g *Get) GetCommand(ctx *cli.Context) {
 		bucketPath = ""
 	}
 
-	marker := ""
 	concurrency := ctx.Int("concurrency")
-
-	myhost := host
-	if myhost == "" {
-		if region != "" {
-			myhost = fmt.Sprintf("s3-%s.amazonaws.com", region)
-		} else {
-			myhost = "s3.amazonaws.com"
-		}
-	}
-
 	for i := 0; i < concurrency; i++ {
-		go g.fetch(myhost, bucketName, localPath)
+		go g.fetch(bucketName, localPath)
 	}
+
+	marker := ""
 
 	for {
 		bucket := request.Bucket{}
 
-		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s?marker=%s&prefix=%s", bucketName, myhost, url.QueryEscape(marker), url.QueryEscape(bucketPath)), nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s?marker=%s&prefix=%s", bucketName, g.client.Host, url.QueryEscape(marker), url.QueryEscape(bucketPath)), nil)
 		if err != nil {
 			common.ErrExit("Could not complete request: %v", err)
 		}
 
-		resp, err := request.Request(g.client, req)
+		resp, err := g.client.Do(req)
 		if err != nil {
 			common.ErrExit("Could not complete request: %v", err)
 		}
@@ -164,13 +150,13 @@ func (gc *GetConfig) Get() (bool, bool) {
 		return true, false
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s/%s", gc.BucketName, gc.Host, *target), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s/%s", gc.BucketName, gc.Client.Host, *target), nil)
 	if err != nil {
 		gc.Pathchan <- target
 		return false, false
 	}
 
-	resp, err := request.Request(gc.Client, req)
+	resp, err := gc.Client.Do(req)
 	if err != nil {
 		gc.Pathchan <- target
 		return false, false
@@ -218,7 +204,7 @@ func (gc *GetConfig) Get() (bool, bool) {
 	return true, false
 }
 
-func (g *Get) fetch(host, bucketName, localPath string) {
+func (g *Get) fetch(bucketName, localPath string) {
 	for {
 		gc := GetConfig{
 			Client:     g.client,
@@ -226,7 +212,6 @@ func (g *Get) fetch(host, bucketName, localPath string) {
 			Donechan:   g.donechan,
 			BucketName: bucketName,
 			LocalPath:  localPath,
-			Host:       host,
 		}
 
 		if ok, doBreak := gc.Get(); !ok && doBreak {

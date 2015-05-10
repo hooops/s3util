@@ -1,11 +1,10 @@
 package request
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/smartystreets/go-aws-auth"
-
-	"github.com/erikh/s3util/env"
 )
 
 type Bucket struct {
@@ -31,16 +30,37 @@ type BucketOwner struct {
 	DisplayName string
 }
 
-func signRequest(req *http.Request) *http.Request {
-	return awsauth.Sign4(
-		req,
-		awsauth.Credentials{
-			AccessKeyID:     env.ACCESS_KEY,
-			SecretAccessKey: env.SECRET_KEY,
-		},
-	)
+type Client struct {
+	HTTP *http.Client
+	AWS  awsauth.Credentials
+	Host string
 }
 
-func Request(client *http.Client, req *http.Request) (*http.Response, error) {
-	return client.Do(signRequest(req))
+func NewClient(access, secret, host, region string) Client {
+	c := Client{
+		AWS: awsauth.Credentials{
+			AccessKeyID:     access,
+			SecretAccessKey: secret,
+		},
+		Host: host,
+		HTTP: new(http.Client),
+	}
+
+	if c.Host == "" {
+		if region != "" {
+			c.Host = fmt.Sprintf("s3-%s.amazonaws.com", region)
+		} else {
+			c.Host = "s3.amazonaws.com"
+		}
+	}
+
+	return c
+}
+
+func (c Client) Do(req *http.Request) (*http.Response, error) {
+	return c.HTTP.Do(c.signClient(req))
+}
+
+func (c Client) signClient(req *http.Request) *http.Request {
+	return awsauth.Sign4(req, c.AWS)
 }

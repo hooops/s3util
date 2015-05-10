@@ -12,7 +12,6 @@ import (
 
 	"github.com/codegangsta/cli"
 
-	"github.com/erikh/s3util/env"
 	"github.com/erikh/s3util/request"
 	"github.com/erikh/s3util/s3url"
 )
@@ -24,14 +23,14 @@ type putFile struct {
 }
 
 type Put struct {
-	client      *http.Client
+	client      request.Client
 	requestChan chan *putFile
 	doneChan    chan struct{}
 }
 
 func NewPut() *Put {
 	return &Put{
-		client:      new(http.Client),
+		client:      request.Client{},
 		requestChan: make(chan *putFile),
 		doneChan:    make(chan struct{}),
 	}
@@ -42,6 +41,13 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 		cli.ShowAppHelp(ctx)
 		os.Exit(1)
 	}
+
+	p.client = request.NewClient(
+		ctx.String("access-key"),
+		ctx.String("secret-key"),
+		ctx.String("host"),
+		ctx.String("region"),
+	)
 
 	target := ctx.Args()[0]
 	s3url, err := s3url.ParseS3URL(ctx.Args()[1])
@@ -57,9 +63,7 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 		os.Exit(1)
 	}
 
-	env.Init(ctx.String("access-key"), ctx.String("secret-key"))
-
-	if env.ACCESS_KEY == "" || env.SECRET_KEY == "" {
+	if p.client.AWS.AccessKeyID == "" || p.client.AWS.SecretAccessKey == "" {
 		fmt.Println("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
 		cli.ShowAppHelp(ctx)
 		os.Exit(1)
@@ -102,19 +106,7 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 
 		file.Seek(0, 0)
 
-		myhost := ctx.String("host")
-
-		if myhost == "" {
-			region := ctx.String("region")
-
-			if region != "" {
-				myhost = fmt.Sprintf("s3-%s.amazonaws.com", region)
-			} else {
-				myhost = "s3.amazonaws.com"
-			}
-		}
-
-		url := fmt.Sprintf("https://%s.%s%s", s3url.Bucket, myhost, remotePath)
+		url := fmt.Sprintf("https://%s.%s%s", s3url.Bucket, p.client.Host, remotePath)
 		req, err := http.NewRequest("PUT", url, file)
 		if err != nil {
 			return err
@@ -155,7 +147,7 @@ func (p *Put) runPut() {
 			return
 		}
 
-		resp, err := request.Request(p.client, putfile.request)
+		resp, err := p.client.Do(putfile.request)
 		if err == nil {
 			fmt.Printf("%s ~> %s\n", putfile.filename, putfile.url)
 		} else {
