@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -21,7 +22,7 @@ import (
 type Get struct {
 	bucketClient *bucket.BucketClient
 	pathchan     chan *string
-	donechan     chan struct{}
+	wg           sync.WaitGroup
 	localPath    string
 	concurrency  int
 }
@@ -30,7 +31,7 @@ func NewGet() *Get {
 	return &Get{
 		bucketClient: nil,
 		pathchan:     make(chan *string),
-		donechan:     make(chan struct{}),
+		wg:           sync.WaitGroup{},
 	}
 }
 
@@ -52,9 +53,7 @@ func (g *Get) GetCommand(ctx *cli.Context) {
 		g.pathchan <- nil
 	}
 
-	for i := 0; i < g.concurrency; i++ {
-		<-g.donechan
-	}
+	g.wg.Wait()
 }
 
 func (g *Get) handleArgs(ctx *cli.Context) error {
@@ -105,10 +104,12 @@ func (g *Get) pushBack(s *string) {
 }
 
 func (g *Get) fetch() {
+	g.wg.Add(1)
+
 	for {
 		target := <-g.pathchan
 		if target == nil {
-			g.donechan <- struct{}{}
+			g.wg.Done()
 			break
 		}
 
