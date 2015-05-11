@@ -8,6 +8,7 @@ import (
 type S3URL struct {
 	Bucket string
 	Path   string
+	Region string
 }
 
 func ParseS3URL(s3url string) (S3URL, error) {
