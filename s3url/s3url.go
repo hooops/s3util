@@ -25,9 +25,13 @@ func ParseS3URL(s3url string) (S3URL, error) {
 	s3 := S3URL{}
 
 	if strings.Contains(u.Host, ".") {
-		strs := strings.SplitN(u.Host, ".", 2)
-		s3.Bucket = strs[0]
-		s3.Region = strs[1]
+		strs := strings.Split(u.Host, ".")
+		s3.Region = strs[len(strs)-1]
+		if len(strs) == 2 {
+			s3.Bucket = strs[0]
+		} else {
+			s3.Bucket = strings.Join(strs[:len(strs)-1], ".")
+		}
 	} else {
 		s3.Bucket = u.Host
 	}
