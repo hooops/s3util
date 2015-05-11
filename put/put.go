@@ -127,6 +127,14 @@ func (p *Put) runPut() {
 	}
 }
 
+func (p *Put) Put(request *http.Request, filename, url string) {
+	p.requestChan <- &putFile{
+		request:  request,
+		filename: filename,
+		url:      url,
+	}
+}
+
 func (p *Put) handleFile(path string, fi os.FileInfo, err error) error {
 	if fi != nil && fi.IsDir() {
 		return nil
@@ -151,11 +159,7 @@ func (p *Put) handleFile(path string, fi os.FileInfo, err error) error {
 		return err
 	}
 
-	p.requestChan <- &putFile{
-		request:  req,
-		filename: path,
-		url:      url,
-	}
+	p.Put(req, path, url)
 
 	return nil
 }
