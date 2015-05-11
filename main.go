@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"runtime"
 
 	"github.com/codegangsta/cli"
 
@@ -75,5 +76,6 @@ func makeApp() *cli.App {
 }
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	makeApp().Run(os.Args)
 }
