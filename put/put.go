@@ -1,8 +1,6 @@
 package put
 
 import (
-	"crypto/md5"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -76,12 +74,12 @@ func (p *Put) handleArgs(ctx *cli.Context) error {
 
 	p.target = ctx.Args()[0]
 
-	s3url, err := s3url.ParseS3URL(ctx.Args()[1])
+	s3, err := s3url.ParseS3URL(ctx.Args()[1])
 	if err != nil {
 		return err
 	}
 
-	p.s3url = s3url
+	p.s3url = s3
 
 	if p.target == "" {
 		return fmt.Errorf("Invalid target or bucket")
@@ -139,7 +137,7 @@ func (p *Put) handleFile(path string, fi os.FileInfo, err error) error {
 		return fmt.Errorf("Could not open %q for reading: %v", path, err)
 	}
 
-	md5sum, buflen, err := p.sumFile(file)
+	md5sum, buflen, err := common.SumFile(file)
 	if err != nil {
 		return err
 	}
@@ -174,29 +172,4 @@ func (p *Put) createPut(file io.ReadCloser, md5sum string, md5len int, remotePat
 	req.Header.Add("Content-MD5", md5sum)
 
 	return req, url, nil
-}
-
-func (p *Put) sumFile(file io.ReadCloser) (string, int, error) {
-	sum := md5.New()
-
-	buflen := 0
-
-	for {
-		buf := make([]byte, 4096)
-		c, err := file.Read(buf)
-		if err != nil && err != io.EOF {
-			return "", 0, err
-		}
-
-		sum.Write(buf[:c])
-		buflen += c
-
-		if err == io.EOF {
-			break
-		}
-	}
-
-	md5sum := base64.StdEncoding.EncodeToString(sum.Sum(nil))
-
-	return md5sum, buflen, nil
 }
