@@ -32,6 +32,13 @@ var truthTable = []truth{
 		bucket:   "quux",
 		path:     "test",
 	},
+	truth{
+		url:      "s3://quux.us-west-1/test",
+		succeeds: true,
+		bucket:   "quux",
+		region:   "us-west-1",
+		path:     "test",
+	},
 }
 
 func TestBasic(t *testing.T) {
