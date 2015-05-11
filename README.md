@@ -18,11 +18,6 @@ $ go get github.com/erikh/s3util
 * `s3util get --help` will show you how to use the get tool
 * `s3util put --help` will show you how to use the put tool
 
-**Note**: the default region is us-east-1 or the "classic" region. If you wish
-to download files from another region, s3util will just download no files. This
-is currently a bug in s3util, but if you specify `--region` you will find it
-downloads your files properly.
-
 ## Author
 
 Erik Hollensbe <github@hollensbe.org>
