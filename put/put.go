@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -27,15 +28,15 @@ type Put struct {
 	s3url       s3url.S3URL
 	client      request.Client
 	requestChan chan *putFile
-	doneChan    chan struct{}
+	wg          sync.WaitGroup
 	target      string
 	concurrency int
 }
 
 func NewPut() *Put {
 	return &Put{
+		wg:          sync.WaitGroup{},
 		requestChan: make(chan *putFile),
-		doneChan:    make(chan struct{}),
 	}
 }
 
@@ -58,9 +59,7 @@ func (p *Put) PutCommand(ctx *cli.Context) {
 		p.requestChan <- nil
 	}
 
-	for i := 0; i < p.concurrency; i++ {
-		<-p.doneChan
-	}
+	p.wg.Wait()
 }
 
 func (p *Put) handleArgs(ctx *cli.Context) error {
@@ -98,29 +97,27 @@ func (p *Put) handleArgs(ctx *cli.Context) error {
 }
 
 func (p *Put) runPut() {
+	p.wg.Add(1)
+
 	for {
 		putfile := <-p.requestChan
 		if putfile == nil {
-			p.doneChan <- struct{}{}
+			p.wg.Done()
 			return
 		}
 
 		resp, err := p.client.Do(putfile.request)
-		if err == nil {
-			fmt.Printf("%s ~> %s", putfile.filename, putfile.url)
-		} else {
+		if err != nil {
 			common.ErrWarn("Error pushing %s: %s. retrying", putfile.filename, err)
 			time.Sleep(common.BACKOFF)
 			p.requestChan <- putfile
-			// FIXME improve error
-			if resp != nil && resp.Body != nil {
-				io.Copy(os.Stdout, resp.Body)
-			}
 			continue
 		}
 
+		fmt.Printf("%s ~> %s\n", putfile.filename, putfile.url)
+
 		if resp.StatusCode != 200 {
-			common.ErrWarn("Received non-200 status code: %d. Cannot continue.\n", resp.StatusCode)
+			common.ErrWarn("Received non-200 status code: %d. Cannot continue.", resp.StatusCode)
 			common.ErrWarn("Ensure your region settings are correct.")
 			os.Exit(1)
 		}
@@ -151,7 +148,7 @@ func (p *Put) handleFile(path string, fi os.FileInfo, err error) error {
 
 	file.Seek(0, 0)
 
-	req, url, err := p.createPutURL(file, md5sum, buflen, remotePath)
+	req, url, err := p.createPut(file, md5sum, buflen, remotePath)
 	if err != nil {
 		return err
 	}
@@ -165,7 +162,7 @@ func (p *Put) handleFile(path string, fi os.FileInfo, err error) error {
 	return nil
 }
 
-func (p *Put) createPutURL(file io.ReadCloser, md5sum string, md5len int, remotePath string) (*http.Request, string, error) {
+func (p *Put) createPut(file io.ReadCloser, md5sum string, md5len int, remotePath string) (*http.Request, string, error) {
 	url := common.TemplateHost(p.s3url.Bucket, p.client.Host, remotePath)
 	req, err := http.NewRequest("PUT", url, file)
 	if err != nil {
