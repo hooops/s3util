@@ -3,11 +3,13 @@ package s3url
 import "testing"
 
 type truth struct {
-	url      string
-	succeeds bool
-	bucket   string
-	path     string
-	region   string
+	url        string
+	succeeds   bool
+	bucket     string
+	path       string
+	region     string
+	access_key string
+	secret_key string
 }
 
 var truthTable = []truth{
@@ -46,6 +48,26 @@ var truthTable = []truth{
 		region:   "us-east-1",
 		path:     "test-1",
 	},
+	truth{
+		url:      "s3://quux.bar.baz.us-east-1/test-1",
+		succeeds: true,
+		bucket:   "quux.bar.baz",
+		region:   "us-east-1",
+		path:     "test-1",
+	},
+	truth{
+		url:        "s3://akia:baz@quux.bar.us-east-1/test-1",
+		succeeds:   true,
+		bucket:     "quux.bar",
+		region:     "us-east-1",
+		path:       "test-1",
+		access_key: "akia",
+		secret_key: "baz",
+	},
+	truth{
+		url:      "s3://akia@quux.bar.us-east-1/test-1",
+		succeeds: false,
+	},
 }
 
 func TestBasic(t *testing.T) {
@@ -69,6 +91,14 @@ func TestBasic(t *testing.T) {
 
 		if s3.Region != truth.region {
 			t.Fatalf("Region was not parsed: %q %q %q", truth.url, truth.region, s3.Region)
+		}
+
+		if s3.AccessKey != truth.access_key {
+			t.Fatalf("AccessKey was not parsed: %q %q %q", truth.url, truth.access_key, s3.AccessKey)
+		}
+
+		if s3.SecretKey != truth.secret_key {
+			t.Fatalf("SecretKey was not parsed: %q %q %q", truth.url, truth.secret_key, s3.SecretKey)
 		}
 	}
 }

@@ -7,9 +7,11 @@ import (
 )
 
 type S3URL struct {
-	Bucket string
-	Path   string
-	Region string
+	Bucket    string
+	Path      string
+	Region    string
+	AccessKey string
+	SecretKey string
 }
 
 func ParseS3URL(s3url string) (S3URL, error) {
@@ -22,7 +24,25 @@ func ParseS3URL(s3url string) (S3URL, error) {
 		return S3URL{}, fmt.Errorf("Not a s3:// url")
 	}
 
-	s3 := S3URL{}
+	var user, pw string
+
+	if u.User != nil {
+		user = u.User.Username()
+		pw, _ = u.User.Password()
+	}
+
+	s3 := S3URL{
+		AccessKey: user,
+		SecretKey: pw,
+	}
+
+	if s3.AccessKey != "" && s3.SecretKey == "" {
+		return s3, fmt.Errorf("Both username and password must be set")
+	}
+
+	if s3.SecretKey != "" && s3.AccessKey == "" {
+		return s3, fmt.Errorf("Both username and password must be set")
+	}
 
 	if strings.Contains(u.Host, ".") {
 		strs := strings.Split(u.Host, ".")
