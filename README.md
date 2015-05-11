@@ -26,6 +26,7 @@ syntax used in `s3cmd`.
 
 * the `s3://` scheme must be provided.
 * the username and password correspond to access and secret key (optional)
+* The host is the name of the bucket, except for when...
 * If a `.` is included in the host, the last portion of it will be used as the
   region (optional). If you wish to use bucket names with a dot in them, you
   will need to suffix with the region always.
