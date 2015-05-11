@@ -65,21 +65,36 @@ func (p *Put) handleArgs(ctx *cli.Context) error {
 		return fmt.Errorf("Invalid number of arguments.")
 	}
 
-	p.client = request.NewClient(
-		ctx.String("access-key"),
-		ctx.String("secret-key"),
-		ctx.String("host"),
-		ctx.String("region"),
-	)
-
-	p.target = ctx.Args()[0]
-
 	s3, err := s3url.ParseS3URL(ctx.Args()[1])
 	if err != nil {
 		return err
 	}
 
 	p.s3url = s3
+
+	region := s3.Region
+	if region == "" {
+		region = ctx.String("region")
+	}
+
+	access_key := s3.AccessKey
+	if access_key == "" {
+		access_key = ctx.String("access-key")
+	}
+
+	secret_key := s3.SecretKey
+	if secret_key == "" {
+		secret_key = ctx.String("secret-key")
+	}
+
+	p.client = request.NewClient(
+		access_key,
+		secret_key,
+		ctx.String("host"),
+		region,
+	)
+
+	p.target = ctx.Args()[0]
 
 	if p.target == "" {
 		return fmt.Errorf("Invalid target or bucket")
