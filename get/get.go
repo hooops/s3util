@@ -61,22 +61,37 @@ func (g *Get) handleArgs(ctx *cli.Context) error {
 		return fmt.Errorf("Incorrect arguments. Try `%s --help`.", os.Args[0])
 	}
 
+	s3, err := s3url.ParseS3URL(ctx.Args()[0])
+	if err != nil {
+		return err
+	}
+
+	region := s3.Region
+	if region == "" {
+		region = ctx.String("region")
+	}
+
+	access_key := s3.AccessKey
+	if access_key == "" {
+		access_key = ctx.String("access-key")
+	}
+
+	secret_key := s3.SecretKey
+	if secret_key == "" {
+		secret_key = ctx.String("secret-key")
+	}
+
 	client := request.NewClient(
-		ctx.String("access-key"),
-		ctx.String("secret-key"),
+		access_key,
+		secret_key,
 		ctx.String("host"),
-		ctx.String("region"),
+		region,
 	)
 
 	if client.AWS.AccessKeyID == "" || client.AWS.SecretAccessKey == "" {
 		return fmt.Errorf("Invalid keys. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
 		cli.ShowAppHelp(ctx)
 		os.Exit(1)
-	}
-
-	s3url, err := s3url.ParseS3URL(ctx.Args()[0])
-	if err != nil {
-		return err
 	}
 
 	localPath := ctx.Args()[1]
@@ -88,7 +103,7 @@ func (g *Get) handleArgs(ctx *cli.Context) error {
 	g.localPath = localPath
 	g.concurrency = ctx.Int("concurrency")
 
-	g.bucketClient = bucket.NewBucketClient(s3url, client)
+	g.bucketClient = bucket.NewBucketClient(s3, client)
 
 	return nil
 }
